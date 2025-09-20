@@ -1,0 +1,33 @@
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from .models import Base
+import os
+
+# Configuración de base de datos
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/asl_recognition.db")
+
+# Crear motor de base de datos
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+)
+
+# Crear sesión
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def get_db():
+    """Dependencia para obtener sesión de base de datos"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def create_tables():
+    """Crear todas las tablas"""
+    Base.metadata.create_all(bind=engine)
+
+def init_database():
+    """Inicializar base de datos"""
+    create_tables()
+    print("Base de datos inicializada correctamente")

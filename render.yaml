@@ -1,0 +1,14 @@
+version: "3"
+services:
+  - type: web
+    name: asl-recognition-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: ENV
+        value: production
+      - key: DATABASE_URL
+        value: sqlite:///./data/asl_recognition.db
+    healthCheckPath: /health

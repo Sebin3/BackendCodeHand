@@ -1,0 +1,18 @@
+version: "3"
+services:
+  fastapi:
+  build: .
+  container_name: asl_recognition
+  ports:
+    - "8000:8000"
+  environment:
+    - ENV=production
+  # web:
+  #   build: .
+  #   ports:
+  #     - "5000:5000"
+  #   volumes:
+  #     - .:/app
+  #   environment:
+  #     - ENV=development
+  #   command: uvicorn app:app --host
