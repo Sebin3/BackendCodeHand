@@ -2,7 +2,6 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-
 # Copiar requirements y instalar dependencias Python
 COPY requirements.txt .
 RUN pip install --upgrade pip
@@ -12,7 +11,7 @@ RUN pip install -r requirements.txt
 COPY . .
 
 # Crear directorios necesarios
-RUN mkdir -p /app/models /app/training_data
+RUN mkdir -p /app/data/models /app/data/training_data
 
 # Exponer puerto
 EXPOSE 8000

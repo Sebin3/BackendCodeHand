@@ -8,9 +8,9 @@ import joblib
 import numpy as np
 from datetime import datetime
 
-from database import get_db, init_database
-from models import Modulo, TrainingSample
-from schemas import (
+from .database import get_db, init_database
+from .models import Modulo, TrainingSample
+from .schemas import (
     ModuloCreate, TrainingSampleCreate, ModuloResponse,
     PredictionRequest, PredictionResponse, DeleteResponse
 )
