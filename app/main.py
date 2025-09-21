@@ -61,7 +61,23 @@ def health_check():
 def list_models(db: Session = Depends(get_db)):
     """Listar todos los módulos"""
     modulos = db.query(Modulo).all()
-    return modulos
+    
+    # Convertir objetos de la BD al formato correcto
+    result = []
+    for modulo in modulos:
+        result.append(ModuloResponse(
+            id=modulo.id,
+            name=modulo.name,
+            categories=modulo.get_categories_list(),  # Convertir JSON string a lista
+            status=modulo.status,
+            accuracy=modulo.accuracy,
+            model_path=modulo.model_path,
+            total_samples=modulo.total_samples,
+            created_at=modulo.created_at,
+            updated_at=modulo.updated_at
+        ))
+    
+    return result
 
 @app.post("/models/create")
 async def create_model(request: ModuloCreate, db: Session = Depends(get_db)):
