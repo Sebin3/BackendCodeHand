@@ -4,7 +4,7 @@ from .models import Base
 import os
 
 # Configuración de base de datos
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/asl_recognition.db")
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("database", "sqlite:///./data/asl_recognition.db")
 
 # Crear motor de base de datos
 if "postgresql" in DATABASE_URL:
