@@ -7,10 +7,15 @@ import os
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/asl_recognition.db")
 
 # Crear motor de base de datos
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
-)
+if "postgresql" in DATABASE_URL:
+    # PostgreSQL
+    engine = create_engine(DATABASE_URL)
+else:
+    # SQLite (desarrollo local)
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False}
+    )
 
 # Crear sesión
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

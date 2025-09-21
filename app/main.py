@@ -168,8 +168,9 @@ async def train_model(model_id: str, db: Session = Depends(get_db)):
         accuracy = model.score(X_test, y_test)
         
         # Guardar modelo
-        os.makedirs("data/models", exist_ok=True)
-        model_path = f"data/models/{model_id}.pkl"
+        model_dir = os.getenv("MODEL_DIR", "/tmp/models")
+        os.makedirs(model_dir, exist_ok=True)
+        model_path = f"{model_dir}/{model_id}.pkl"
         joblib.dump(model, model_path)
         
         # Actualizar módulo

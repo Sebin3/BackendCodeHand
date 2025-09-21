@@ -1,7 +1,8 @@
 fastapi
-uvicorn[standard]
+uvicorn
 pydantic
 sqlalchemy
+psycopg2-binary
 numpy
 scikit-learn
 joblib
