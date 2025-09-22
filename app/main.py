@@ -222,33 +222,68 @@ async def predict(
     db: Session = Depends(get_db)
 ):
     """Predecir usando modelo entrenado"""
+    print(f"🔍 [PREDICT] Iniciando predicción para modelo: {model_id}")
+    print(f"📊 [PREDICT] Landmarks recibidos: {len(request.landmarks)} elementos")
+    print(f"📊 [PREDICT] Primeros 5 landmarks: {request.landmarks[:5]}")
+    
     # Verificar que el módulo existe y está entrenado
     modulo = db.query(Modulo).filter(Modulo.id == model_id).first()
     if not modulo:
+        print(f"❌ [PREDICT] Módulo no encontrado: {model_id}")
         raise HTTPException(status_code=404, detail="Módulo no encontrado")
     
+    print(f"✅ [PREDICT] Módulo encontrado: {modulo.name}")
+    print(f"📋 [PREDICT] Status: {modulo.status}")
+    print(f"📋 [PREDICT] Model path: {modulo.model_path}")
+    
     if modulo.status != "trained":
+        print(f"❌ [PREDICT] Módulo no está entrenado: {modulo.status}")
         raise HTTPException(status_code=400, detail="Módulo no está entrenado")
     
-    if not modulo.model_path or not os.path.exists(modulo.model_path):
+    if not modulo.model_path:
+        print(f"❌ [PREDICT] Model path es None")
         raise HTTPException(status_code=500, detail="Modelo no encontrado en disco")
     
+    if not os.path.exists(modulo.model_path):
+        print(f"❌ [PREDICT] Archivo modelo no existe: {modulo.model_path}")
+        raise HTTPException(status_code=500, detail="Modelo no encontrado en disco")
+    
+    print(f"✅ [PREDICT] Archivo modelo existe: {modulo.model_path}")
+    
     try:
+        print(f"🔄 [PREDICT] Cargando modelo...")
         # Cargar modelo
         model = joblib.load(modulo.model_path)
+        print(f"✅ [PREDICT] Modelo cargado exitosamente")
         
+        print(f"🔄 [PREDICT] Preparando datos para predicción...")
         # Predecir
         arr = np.array(request.landmarks).reshape(1, -1)
-        prediction = model.predict(arr)[0]
-        confidence = float(max(model.predict_proba(arr)[0]))
+        print(f"📊 [PREDICT] Array shape: {arr.shape}")
+        print(f"📊 [PREDICT] Primeros 10 valores: {arr[0][:10]}")
         
-        return PredictionResponse(
+        print(f"🔄 [PREDICT] Ejecutando predicción...")
+        prediction = model.predict(arr)[0]
+        print(f"✅ [PREDICT] Predicción: {prediction}")
+        
+        print(f"🔄 [PREDICT] Calculando confianza...")
+        confidence = float(max(model.predict_proba(arr)[0]))
+        print(f"✅ [PREDICT] Confianza: {confidence}")
+        
+        result = PredictionResponse(
             prediction=prediction,
             confidence=confidence,
             model_id=model_id
         )
         
+        print(f"🎉 [PREDICT] Respuesta exitosa: {result}")
+        return result
+        
     except Exception as e:
+        print(f"❌ [PREDICT] Error en predicción: {str(e)}")
+        print(f"❌ [PREDICT] Tipo de error: {type(e).__name__}")
+        import traceback
+        print(f"❌ [PREDICT] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error en predicción: {str(e)}")
 
 @app.delete("/models/{model_id}", response_model=DeleteResponse)
