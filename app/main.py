@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 import uuid
@@ -6,6 +6,8 @@ import os
 import json
 import joblib
 import numpy as np
+import csv
+import io
 from datetime import datetime
 
 from .database import get_db, init_database
@@ -49,7 +51,9 @@ def read_root():
             "capture": "/models/{id}/capture - POST para capturar datos",
             "train": "/models/{id}/train - POST para entrenar modelo",
             "predict": "/models/{id}/predict - POST para predecir",
-            "delete": "/models/{id} - DELETE para eliminar modelo"
+            "delete": "/models/{id} - DELETE para eliminar modelo",
+            "import": "/models/{id}/import - POST para importar dataset JSON",
+            "import_csv": "/models/{id}/import-csv - POST para importar dataset CSV"
         }
     }
 
@@ -261,3 +265,95 @@ async def delete_model(model_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error eliminando módulo: {str(e)}")
+
+@app.post("/models/{model_id}/import-csv")
+async def import_csv_dataset(
+    model_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """Importar dataset desde archivo CSV"""
+    # Verificar que el módulo existe
+    modulo = db.query(Modulo).filter(Modulo.id == model_id).first()
+    if not modulo:
+        raise HTTPException(status_code=404, detail="Módulo no encontrado")
+    
+    # Verificar que el archivo es CSV
+    if not file.filename.lower().endswith('.csv'):
+        raise HTTPException(status_code=400, detail="El archivo debe ser un CSV")
+    
+    try:
+        # Leer contenido del archivo
+        content = await file.read()
+        csv_content = content.decode('utf-8')
+        
+        # Parsear CSV
+        csv_reader = csv.DictReader(io.StringIO(csv_content))
+        
+        imported_count = 0
+        batch_size = 100  # Procesar en lotes más grandes para CSV
+        
+        # Procesar filas del CSV
+        rows = list(csv_reader)
+        total_rows = len(rows)
+        
+        for i in range(0, total_rows, batch_size):
+            batch = rows[i:i + batch_size]
+            
+            for row in batch:
+                try:
+                    # Obtener las claves de la fila
+                    row_keys = list(row.keys())
+                    
+                    if len(row_keys) < 2:
+                        continue
+                    
+                    # La primera columna es la categoría
+                    category = row[row_keys[0]]
+                    
+                    # Las siguientes columnas son los landmarks
+                    landmarks = []
+                    for i in range(1, len(row_keys)):
+                        try:
+                            value = float(row[row_keys[i]])
+                            landmarks.append(value)
+                        except (ValueError, TypeError):
+                            continue
+                    
+                    # Validar que tengamos landmarks válidos
+                    if len(landmarks) == 0:
+                        continue
+                    
+                    # Crear muestra
+                    sample = TrainingSample(
+                        modulo_id=model_id,
+                        category=category,
+                        landmarks=json.dumps(landmarks)
+                    )
+                    
+                    db.add(sample)
+                    imported_count += 1
+                    
+                except Exception as e:
+                    print(f"Error procesando fila: {e}")
+                    continue
+            
+            # Commit del lote
+            db.commit()
+            print(f"Lote procesado: {imported_count} muestras importadas")
+        
+        # Actualizar contador de muestras del módulo
+        total_samples = db.query(TrainingSample).filter(TrainingSample.modulo_id == model_id).count()
+        modulo.total_samples = total_samples
+        db.commit()
+        
+        return {
+            "status": "imported",
+            "imported_count": imported_count,
+            "total_samples": total_samples,
+            "message": f"Dataset CSV importado: {imported_count} muestras agregadas"
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error importando CSV: {str(e)}")
