@@ -83,6 +83,26 @@ def list_models(db: Session = Depends(get_db)):
     
     return result
 
+@app.get("/models/{model_id}/samples/{category}")
+def get_category_samples(model_id: str, category: str, db: Session = Depends(get_db)):
+    """Obtener muestras de una categoría específica"""
+    # Verificar que el módulo existe
+    modulo = db.query(Modulo).filter(Modulo.id == model_id).first()
+    if not modulo:
+        raise HTTPException(status_code=404, detail="Módulo no encontrado")
+    
+    # Contar muestras de la categoría
+    count = db.query(TrainingSample).filter(
+        TrainingSample.modulo_id == model_id,
+        TrainingSample.category == category
+    ).count()
+    
+    return {
+        "model_id": model_id,
+        "category": category,
+        "count": count
+    }
+
 @app.post("/models/create")
 async def create_model(request: ModuloCreate, db: Session = Depends(get_db)):
     """Crear nuevo módulo"""
