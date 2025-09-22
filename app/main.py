@@ -191,18 +191,19 @@ async def train_model(model_id: str, db: Session = Depends(get_db)):
         # Calcular precisión
         accuracy = model.score(X_test, y_test)
         
-        # Guardar modelo serializado en base de datos (persistente)
-        import pickle
-        import base64
+        # Guardar modelo en directorio persistente de Render
+        model_dir = "/opt/render/project/src/models"  # Directorio persistente de Render
+        os.makedirs(model_dir, exist_ok=True)
+        model_path = f"{model_dir}/{model_id}.pkl"
         
-        # Serializar modelo a bytes
-        model_bytes = pickle.dumps(model)
-        model_base64 = base64.b64encode(model_bytes).decode('utf-8')
+        # Guardar modelo
+        import joblib
+        joblib.dump(model, model_path)
         
-        # Actualizar módulo con modelo serializado
+        # Actualizar módulo
         modulo.status = "trained"
         modulo.accuracy = accuracy
-        modulo.model_path = model_base64  # Guardar modelo serializado en lugar de path
+        modulo.model_path = model_path
         db.commit()
         
         return {
@@ -213,6 +214,11 @@ async def train_model(model_id: str, db: Session = Depends(get_db)):
         }
         
     except Exception as e:
+        print(f"❌ [TRAIN] Error entrenando modelo: {str(e)}")
+        import traceback
+        print(f"❌ [TRAIN] Traceback: {traceback.format_exc()}")
+        
+        # Solo marcar como error si realmente falló el entrenamiento
         modulo.status = "error"
         db.commit()
         raise HTTPException(status_code=500, detail=f"Error entrenando modelo: {str(e)}")
@@ -249,14 +255,16 @@ async def predict(
     print(f"✅ [PREDICT] Modelo encontrado en base de datos")
     
     try:
-        print(f"🔄 [PREDICT] Cargando modelo desde base de datos...")
-        # Cargar modelo desde base de datos
-        import pickle
-        import base64
+        print(f"🔄 [PREDICT] Cargando modelo desde archivo...")
+        # Cargar modelo desde archivo
+        import joblib
         
-        model_bytes = base64.b64decode(modulo.model_path.encode('utf-8'))
-        model = pickle.loads(model_bytes)
-        print(f"✅ [PREDICT] Modelo cargado exitosamente desde base de datos")
+        if not os.path.exists(modulo.model_path):
+            print(f"❌ [PREDICT] Archivo de modelo no encontrado: {modulo.model_path}")
+            raise HTTPException(status_code=500, detail="Archivo de modelo no encontrado")
+        
+        model = joblib.load(modulo.model_path)
+        print(f"✅ [PREDICT] Modelo cargado exitosamente desde archivo")
         
         print(f"🔄 [PREDICT] Preparando datos para predicción...")
         # Predecir
@@ -297,7 +305,9 @@ async def delete_model(model_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Módulo no encontrado")
     
     try:
-        # El modelo ya está en la base de datos, no hay archivo que eliminar
+        # Eliminar archivo de modelo del disco
+        if modulo.model_path and os.path.exists(modulo.model_path):
+            os.remove(modulo.model_path)
         
         # Eliminar datos de entrenamiento del disco
         training_data_path = f"data/training_data/{model_id}.json"
