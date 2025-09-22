@@ -191,8 +191,8 @@ async def train_model(model_id: str, db: Session = Depends(get_db)):
         # Calcular precisión
         accuracy = model.score(X_test, y_test)
         
-        # Guardar modelo
-        model_dir = os.getenv("MODEL_DIR", "/tmp/models")
+        # Guardar modelo en directorio persistente
+        model_dir = os.getenv("MODEL_DIR", "./models")
         os.makedirs(model_dir, exist_ok=True)
         model_path = f"{model_dir}/{model_id}.pkl"
         joblib.dump(model, model_path)
